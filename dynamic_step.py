@@ -1,3 +1,5 @@
+from math import sqrt
+
 from utils import merge_seed
 
 from queue import Queue
@@ -25,30 +27,42 @@ class DynamicStep(object):
 
         self.max_index = pow(10, self.spare_capacity)
 
-        self.step = 1
+        self.step = 0
         self.current_index = 0
 
         self.pass_status_num = None
         self.accumulate_queue = Queue()
+        self.nearest_waybill_list = []
+
+        self.proper_nearest_list_size = sqrt(2 * self.compact_step)
 
     def next_waybill(self):
-        if not self.accumulate_queue.empty():
-            return True, merge_seed(self.seed, str(self.accumulate_queue.get()).zfill(self.spare_capacity))
+        while not self.accumulate_queue.empty():
+            index = self.accumulate_queue.get()
+            if index in self.nearest_waybill_list:
+                continue
+            return True, merge_seed(self.seed, str(index).zfill(self.spare_capacity))
+        if self.pass_status_num and self.pass_status_num > 0:
+            self.pass_status_num -= 1
+
         self.current_index += self.step
         if self.current_index < self.max_index:
+            self.nearest_waybill_list.append(self.current_index)
+            if len(self.nearest_waybill_list) > self.proper_nearest_list_size:
+                self.nearest_waybill_list.pop(0)
+
             return True, merge_seed(self.seed, str(self.current_index).zfill(self.spare_capacity))
         return False, None
 
     def feed_status(self, status):
-        if self.pass_status_num:
-            self.pass_status_num -= 1
+        if not self.accumulate_queue.empty() or self.pass_status_num:
             return None
         if status:
             if self.step == self.max_step:
-                self.pass_status_num = 2 * self.compact_step - 1
-                for index in range(self.current_index - self.compact_step + 1, self.current_index):
+                for index in range(max(self.current_index - self.compact_step + 1, 0), self.current_index):
                     self.accumulate_queue.put(index)
             self.step = 1
+            self.pass_status_num = self.compact_step
         else:
             if self.step != self.max_step:
                 self.step += 1
