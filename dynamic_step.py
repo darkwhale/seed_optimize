@@ -55,15 +55,17 @@ class DynamicStep(object):
         return False, None
 
     def feed_status(self, status):
-        if not self.accumulate_queue.empty() or self.pass_status_num:
+        if not self.accumulate_queue.empty():
             return None
         if status:
-            if self.step == self.max_step:
-                for index in range(max(self.current_index - self.compact_step + 1, 0), self.current_index):
-                    self.accumulate_queue.put(index)
-            self.step = 1
             self.pass_status_num = self.compact_step
-        else:
+            self.step = 1
+        if self.pass_status_num:
+            return None
+        if status and self.step == self.max_step:
+            for index in range(max(self.current_index - self.compact_step + 1, 0), self.current_index):
+                self.accumulate_queue.put(index)
+        if not status:
             if self.step != self.max_step:
                 self.step += 1
 
