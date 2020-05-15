@@ -1,5 +1,7 @@
 from utils import merge_seed
 
+from queue import Queue
+
 
 class DynamicStep(object):
     """动态步长算法"""
@@ -25,20 +27,29 @@ class DynamicStep(object):
 
         self.step = 1
         self.current_index = 0
-        self.current_compact = 0
+
+        self.pass_status_num = None
+        self.accumulate_queue = Queue()
 
     def next_waybill(self):
+        if not self.accumulate_queue.empty():
+            return True, merge_seed(self.seed, str(self.accumulate_queue.get()).zfill(self.spare_capacity))
         self.current_index += self.step
         if self.current_index < self.max_index:
             return True, merge_seed(self.seed, str(self.current_index).zfill(self.spare_capacity))
         return False, None
 
     def feed_status(self, status):
+        if self.pass_status_num:
+            self.pass_status_num -= 1
+            return None
         if status:
+            if self.step == self.max_step:
+                self.pass_status_num = 2 * self.compact_step - 1
+                for index in range(self.current_index - self.compact_step + 1, self.current_index):
+                    self.accumulate_queue.put(index)
             self.step = 1
-            self.current_compact = 0
         else:
-            if self.current_compact >= self.compact_step and self.step != self.max_step:
+            if self.step != self.max_step:
                 self.step += 1
-            self.current_compact += 1
 
